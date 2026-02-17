@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bill's Language Learning Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="bg-shape shape-a"></div>
+    <div class="bg-shape shape-b"></div>
+
+    <div id="lang-toggle" class="lang-toggle" aria-label="Language toggle">
+      <button type="button" class="lang-pill active" data-lang="en" data-i18n-aria-label="lang.enAria">
+        <span class="flag">🇺🇸</span>
+      </button>
+      <span class="lang-swap">⇄</span>
+      <button type="button" class="lang-pill" data-lang="ko" data-i18n-aria-label="lang.koAria">
+        <span class="flag">🇰🇷</span>
+      </button>
+    </div>
+
+    <header class="topbar">
+      <div class="topbar-main">
+        <h1 data-i18n="app.title">Bill's Language Learning Hub</h1>
+        <p data-i18n="app.subtitle">Retro desk for your English and Japanese words</p>
+      </div>
+      <div class="user-panel">
+        <p class="user-label" data-i18n="users.label">Users</p>
+        <div id="user-list" class="user-list"></div>
+        <form id="user-create-form" class="user-create-form">
+          <input
+            id="user-name-input"
+            type="text"
+            data-i18n-placeholder="users.placeholder"
+            placeholder="new username"
+            autocomplete="off"
+          />
+          <button type="submit" data-i18n="users.add">Add</button>
+        </form>
+      </div>
+    </header>
+
+    <main class="desktop-shell">
+      <aside class="dock">
+        <button class="icon-btn active" data-view="search">
+          <span data-i18n="nav.search">🔎 Search</span>
+          <small data-i18n="nav.searchSub">Lookup</small>
+        </button>
+        <button class="icon-btn" data-view="lists">
+          <span data-i18n="nav.lists">📚 Lists</span>
+          <small data-i18n="nav.listsSub">Folders</small>
+        </button>
+        <button class="icon-btn" data-view="history">
+          <span data-i18n="nav.history">🕘 History</span>
+          <small data-i18n="nav.historySub">Searched</small>
+        </button>
+        <button class="icon-btn" data-view="flashcards">
+          <span data-i18n="nav.flashcards">🃏 Flashcards</span>
+          <small data-i18n="nav.flashcardsSub">Flip</small>
+        </button>
+        <button class="icon-btn" data-view="quiz">
+          <span data-i18n="nav.quiz">🧠 Quiz</span>
+          <small data-i18n="nav.quizSub">Score</small>
+        </button>
+        <button class="icon-btn egg-btn" data-view="fortress" aria-label="Hidden fortress game" data-i18n-aria-label="nav.eggAria">
+          <span>🥚</span>
+        </button>
+      </aside>
+
+      <section class="window">
+        <section class="view active" id="view-search">
+          <div class="window-title" data-i18n="search.title">Dictionary Search</div>
+          <form id="search-form" class="search-row">
+            <input
+              id="search-input"
+              type="text"
+              data-i18n-placeholder="search.placeholder"
+              placeholder="Search word..."
+              autocomplete="off"
+            />
+            <button type="submit" data-i18n="search.btn">Search</button>
+          </form>
+          <p class="hint" id="search-source-hint" data-i18n="search.sourceDefault">
+            Source: Naver dictionary (auto Japanese/English)
+          </p>
+          <div id="search-status" class="status"></div>
+          <div id="search-results" class="card-grid"></div>
+        </section>
+
+        <section class="view" id="view-lists">
+          <div class="window-title" data-i18n="lists.title">Word Lists</div>
+          <form id="create-list-form" class="search-row">
+            <input
+              id="list-name-input"
+              type="text"
+              data-i18n-placeholder="lists.placeholder"
+              placeholder="Create a new list name..."
+              autocomplete="off"
+            />
+            <button type="submit" data-i18n="lists.create">Create List</button>
+          </form>
+          <div class="lists-tools">
+            <button id="lists-export-json-btn" type="button" data-i18n="lists.exportJson">
+              Export JSON
+            </button>
+            <button id="lists-export-csv-btn" type="button" data-i18n="lists.exportCsv">
+              Export CSV
+            </button>
+            <button id="lists-import-btn" type="button" data-i18n="lists.import">
+              Import
+            </button>
+            <input id="lists-import-input" type="file" accept=".json,.csv,text/csv,application/json" hidden />
+          </div>
+          <div id="lists-area"></div>
+        </section>
+
+        <section class="view" id="view-history">
+          <div class="window-title" data-i18n="history.title">Searched Words</div>
+          <p class="hint" data-i18n="history.hint">Only exact terms you typed are saved here.</p>
+          <div id="history-area" class="card-grid"></div>
+        </section>
+
+        <section class="view" id="view-flashcards">
+          <div class="window-title" data-i18n="flash.title">Flashcards</div>
+          <div class="toolbar">
+            <label for="flashcard-list-select" data-i18n="common.list">List</label>
+            <select id="flashcard-list-select"></select>
+            <button id="flash-random-btn" type="button" class="flash-random-btn">Random: Off</button>
+            <span id="flashcard-meta"></span>
+          </div>
+          <div class="flashcard-wrap">
+            <button class="nav-btn" id="flash-prev" aria-label="Previous card">
+              &larr;
+            </button>
+            <div id="flashcard-scene" class="flashcard-scene">
+              <div id="flashcard" class="flashcard">
+                <div class="face face-front">
+                  <div class="word-top">
+                    <h2 id="flash-word" data-i18n="flash.noCard">No card</h2>
+                    <button
+                      id="flash-word-audio-btn"
+                      type="button"
+                      class="word-audio-btn"
+                      data-i18n-title="common.listenWord"
+                      title="Listen to word"
+                    >
+                      🔊
+                    </button>
+                  </div>
+                  <p data-i18n="flash.flipHint">Click or press space to flip</p>
+                </div>
+                <div class="face face-back">
+                  <h3 id="flash-furi"></h3>
+                  <p id="flash-meaning"></p>
+                  <div class="example-stack">
+                    <p id="flash-example-jp" class="example-jp"></p>
+                    <p id="flash-example-ko" class="example-ko"></p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button class="nav-btn" id="flash-next" aria-label="Next card">
+              &rarr;
+            </button>
+          </div>
+          <div class="progress-row">
+            <div class="progress-track">
+              <div id="flash-progress" class="progress-fill"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-quiz">
+          <div class="window-title" data-i18n="quiz.title">Quiz</div>
+          <div class="toolbar">
+            <label for="quiz-list-select" data-i18n="common.list">List</label>
+            <select id="quiz-list-select"></select>
+            <label for="quiz-mode-select" data-i18n="quiz.mode">Mode</label>
+            <select id="quiz-mode-select">
+              <option value="standard" data-i18n="quiz.modeStandard">Standard Quiz</option>
+              <option value="game" data-i18n="quiz.modeGame">Game Quiz (Speed Match)</option>
+              <option value="artillery" data-i18n="quiz.modeBattery">Game Quiz (Battery Command)</option>
+            </select>
+            <button id="quiz-start-btn" type="button" data-i18n="common.start">Start</button>
+          </div>
+          <div id="quiz-area" class="quiz-area">
+            <p class="hint" data-i18n="quiz.hintDefault">
+              Select a list with at least 4 words, then click Start Quiz.
+            </p>
+          </div>
+        </section>
+
+        <section class="view" id="view-fortress">
+          <div class="window-title" data-i18n="fortress.title">Fortress (Easter Egg)</div>
+          <div id="fortress-root" class="fortress-root">
+            <p class="hint" data-i18n="fortress.hint">Press Start, then press Space to lock angle and fire.</p>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <template id="result-card-template">
+      <article class="word-card">
+        <div class="word-top">
+          <h3 class="word"></h3>
+          <button
+            type="button"
+            class="word-audio-btn"
+            data-i18n-title="common.listenWord"
+            title="Listen to word"
+          >
+            🔊
+          </button>
+        </div>
+        <p class="furigana"></p>
+        <p class="meaning"></p>
+        <div class="example-stack">
+          <p class="example-jp"></p>
+          <p class="example-ko"></p>
+        </div>
+        <div class="action-row">
+          <select class="list-select"></select>
+          <button type="button" class="add-btn" data-i18n="common.add">Add</button>
+        </div>
+      </article>
+    </template>
+
+    <template id="list-template">
+      <section class="list-box">
+        <div class="list-head">
+          <h3 class="list-name"></h3>
+          <button type="button" class="tiny-x-btn delete-list-btn" title="Delete list" data-i18n-title="lists.deleteListTitle">×</button>
+        </div>
+        <div class="list-words"></div>
+      </section>
+    </template>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>
