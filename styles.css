@@ -188,6 +188,38 @@ body::after {
   font-size: 1rem;
 }
 
+.api-indicator {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: #eef3ff;
+  color: #1e2f57;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.api-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #f3bf4f;
+  box-shadow: 0 0 0 2px rgba(243, 191, 79, 0.35);
+}
+
+.api-indicator.api-connected .api-dot {
+  background: #43bf57;
+  box-shadow: 0 0 0 2px rgba(67, 191, 87, 0.35);
+}
+
+.api-indicator.api-disconnected .api-dot {
+  background: #e54848;
+  box-shadow: 0 0 0 2px rgba(229, 72, 72, 0.35);
+}
+
 .user-panel {
   min-width: 260px;
   border: 3px solid var(--line);

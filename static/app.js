@@ -211,6 +211,9 @@ const I18N = {
     "search.networkProxy": "Network error while contacting the local proxy.",
     "search.modeEnglish": "English",
     "search.modeJapanese": "Japanese",
+    "api.statusChecking": "API checking...",
+    "api.statusConnected": "API connected",
+    "api.statusDisconnected": "API disconnected",
     "word.noExample": "No example sentence",
     "common.list": "List",
     "common.start": "Start",
@@ -325,6 +328,9 @@ const I18N = {
     "search.networkProxy": "로컬 프록시 서버 연결 중 네트워크 오류가 발생했습니다.",
     "search.modeEnglish": "영어",
     "search.modeJapanese": "일본어",
+    "api.statusChecking": "API 연결 확인 중...",
+    "api.statusConnected": "API 연결됨",
+    "api.statusDisconnected": "API 연결 끊김",
     "word.noExample": "예문 없음",
     "common.list": "리스트",
     "common.start": "시작",
@@ -546,6 +552,7 @@ const ui = {
     },
   },
   fortress: createInitialFortressState(),
+  apiStatus: "checking",
 };
 
 const refs = {
@@ -554,6 +561,8 @@ const refs = {
   navButtons: document.querySelectorAll(".icon-btn"),
   views: document.querySelectorAll(".view"),
   userList: document.getElementById("user-list"),
+  apiIndicator: document.getElementById("api-indicator"),
+  apiIndicatorText: document.getElementById("api-indicator-text"),
   userCreateForm: document.getElementById("user-create-form"),
   userNameInput: document.getElementById("user-name-input"),
   searchForm: document.getElementById("search-form"),
@@ -638,6 +647,37 @@ function applyStaticI18n() {
   if (fortressStart) fortressStart.textContent = t("common.start");
   const fortressReset = document.querySelector('[data-fortress-action="reset"]');
   if (fortressReset) fortressReset.textContent = t("common.reset");
+  updateApiIndicator();
+}
+
+function updateApiIndicator() {
+  if (!refs.apiIndicator || !refs.apiIndicatorText) return;
+  const status = ui.apiStatus === "connected" ? "connected" : ui.apiStatus === "disconnected" ? "disconnected" : "checking";
+  refs.apiIndicator.classList.toggle("api-checking", status === "checking");
+  refs.apiIndicator.classList.toggle("api-connected", status === "connected");
+  refs.apiIndicator.classList.toggle("api-disconnected", status === "disconnected");
+  const key = status === "connected" ? "api.statusConnected" : status === "disconnected" ? "api.statusDisconnected" : "api.statusChecking";
+  refs.apiIndicatorText.textContent = t(key);
+}
+
+async function probeApiStatus() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4500);
+  ui.apiStatus = "checking";
+  updateApiIndicator();
+  try {
+    const response = await fetch(apiUrl("/api/users"), {
+      method: "GET",
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    ui.apiStatus = response.ok ? "connected" : "disconnected";
+  } catch (_err) {
+    ui.apiStatus = "disconnected";
+  } finally {
+    clearTimeout(timeout);
+    updateApiIndicator();
+  }
 }
 
 function bindLanguageToggle() {
@@ -691,6 +731,14 @@ async function init() {
   renderUsers();
   refreshAll();
   backfillMissingRubyForSavedWords();
+  probeApiStatus();
+  setInterval(() => {
+    probeApiStatus();
+  }, 45000);
+  window.addEventListener("online", () => probeApiStatus());
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) probeApiStatus();
+  });
 }
 
 function userStorageKey(userId) {
