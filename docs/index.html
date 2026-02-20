@@ -202,7 +202,12 @@
         </section>
 
         <section class="view" id="view-fortress">
-          <div class="window-title" data-i18n="fortress.title">Fortress (Easter Egg)</div>
+          <div class="window-title-row">
+            <div class="window-title" data-i18n="fortress.title">Fortress (Easter Egg)</div>
+            <button id="fortress-top-start-btn" type="button" class="fortress-top-start" data-i18n="fortress.startGame">
+              Start Game
+            </button>
+          </div>
           <div id="fortress-root" class="fortress-root">
             <p class="hint" data-i18n="fortress.hint">Press Start, then press Space to lock angle and fire.</p>
           </div>
@@ -240,7 +245,10 @@
       <section class="list-box">
         <div class="list-head">
           <h3 class="list-name"></h3>
-          <button type="button" class="tiny-x-btn delete-list-btn" title="Delete list" data-i18n-title="lists.deleteListTitle">×</button>
+          <div class="list-head-actions">
+            <button type="button" class="tiny-edit-btn rename-list-btn" title="Rename list" data-i18n-title="lists.renameListTitle">✎</button>
+            <button type="button" class="tiny-x-btn delete-list-btn" title="Delete list" data-i18n-title="lists.deleteListTitle">×</button>
+          </div>
         </div>
         <div class="list-words"></div>
       </section>

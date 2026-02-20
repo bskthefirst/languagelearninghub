@@ -218,6 +218,7 @@ const I18N = {
     "common.list": "List",
     "common.start": "Start",
     "common.reset": "Reset",
+    "common.fire": "Fire",
     "common.add": "Add",
     "common.added": "Added",
     "common.chooseList": "Choose list",
@@ -242,6 +243,8 @@ const I18N = {
     "lists.noWordsYet": "No words in this list yet.",
     "lists.deleteListTitle": "Delete list",
     "lists.deleteListConfirm": "Delete list \"{name}\"?",
+    "lists.renameListTitle": "Rename list",
+    "lists.renameListPrompt": "Enter a new name for \"{name}\"",
     "lists.wordExists": "This word is already in that list.",
     "lists.createListBeforeAdd": "Create a list first, then add the word.",
     "lists.mergeConfirm":
@@ -286,7 +289,8 @@ const I18N = {
     "quiz.correct": "Correct.",
     "quiz.wrong": "Wrong. Correct answer: {answer}",
     "fortress.title": "Fortress (Easter Egg)",
-    "fortress.hint": "Press Start, then press Space to lock angle and fire.",
+    "fortress.hint": "Press Start, then press Space or tap to lock angle and fire.",
+    "fortress.startGame": "Start Game",
     "fortress.pressStart": "Press Start to begin.",
   },
   ko: {
@@ -335,6 +339,7 @@ const I18N = {
     "common.list": "리스트",
     "common.start": "시작",
     "common.reset": "초기화",
+    "common.fire": "발사",
     "common.add": "추가",
     "common.added": "추가됨",
     "common.chooseList": "리스트 선택",
@@ -359,6 +364,8 @@ const I18N = {
     "lists.noWordsYet": "이 리스트에는 단어가 아직 없습니다.",
     "lists.deleteListTitle": "리스트 삭제",
     "lists.deleteListConfirm": "\"{name}\" 리스트를 삭제할까요?",
+    "lists.renameListTitle": "리스트 이름 변경",
+    "lists.renameListPrompt": "\"{name}\"의 새 이름을 입력하세요",
     "lists.wordExists": "이 단어는 이미 해당 리스트에 있습니다.",
     "lists.createListBeforeAdd": "먼저 리스트를 만든 뒤 단어를 추가하세요.",
     "lists.mergeConfirm":
@@ -403,12 +410,14 @@ const I18N = {
     "quiz.correct": "정답입니다.",
     "quiz.wrong": "오답입니다. 정답: {answer}",
     "fortress.title": "포트리스 (이스터에그)",
-    "fortress.hint": "시작을 누른 뒤 스페이스로 각도를 고정하고 발사하세요.",
+    "fortress.hint": "시작을 누른 뒤 스페이스 또는 터치로 각도를 고정하고 발사하세요.",
+    "fortress.startGame": "게임 시작",
     "fortress.pressStart": "시작 버튼을 눌러 전투를 시작하세요.",
   },
 };
 let remoteSaveTimer = null;
 let remoteHydrated = false;
+let apiProbeTimer = null;
 const rubyBackfillCache = new Map();
 const wordAudioResolveCache = new Map();
 const wordAudioResolveInFlight = new Map();
@@ -599,6 +608,7 @@ const refs = {
   quizStartBtn: document.getElementById("quiz-start-btn"),
   quizArea: document.getElementById("quiz-area"),
   fortressRoot: document.getElementById("fortress-root"),
+  fortressTopStartBtn: document.getElementById("fortress-top-start-btn"),
 };
 
 function t(key, vars = {}) {
@@ -647,6 +657,8 @@ function applyStaticI18n() {
   if (fortressStart) fortressStart.textContent = t("common.start");
   const fortressReset = document.querySelector('[data-fortress-action="reset"]');
   if (fortressReset) fortressReset.textContent = t("common.reset");
+  const fortressFire = document.querySelector('[data-fortress-action="fire"]');
+  if (fortressFire) fortressFire.textContent = t("common.fire");
   updateApiIndicator();
 }
 
@@ -662,9 +674,11 @@ function updateApiIndicator() {
 
 async function probeApiStatus() {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 4500);
-  ui.apiStatus = "checking";
-  updateApiIndicator();
+  const timeout = setTimeout(() => controller.abort(), 2200);
+  if (ui.apiStatus !== "connected") {
+    ui.apiStatus = "checking";
+    updateApiIndicator();
+  }
   try {
     const response = await fetch(apiUrl("/api/users"), {
       method: "GET",
@@ -678,6 +692,16 @@ async function probeApiStatus() {
     clearTimeout(timeout);
     updateApiIndicator();
   }
+}
+
+function scheduleApiProbe(delayMs = 0) {
+  if (apiProbeTimer) {
+    clearTimeout(apiProbeTimer);
+  }
+  apiProbeTimer = setTimeout(async () => {
+    await probeApiStatus();
+    scheduleApiProbe(ui.apiStatus === "connected" ? 18000 : 3500);
+  }, Math.max(0, Number(delayMs) || 0));
 }
 
 function bindLanguageToggle() {
@@ -716,6 +740,7 @@ init();
 async function init() {
   bindLanguageToggle();
   applyStaticI18n();
+  scheduleApiProbe(0);
   bindUsers();
   bindNav();
   bindSearch();
@@ -731,13 +756,9 @@ async function init() {
   renderUsers();
   refreshAll();
   backfillMissingRubyForSavedWords();
-  probeApiStatus();
-  setInterval(() => {
-    probeApiStatus();
-  }, 45000);
-  window.addEventListener("online", () => probeApiStatus());
+  window.addEventListener("online", () => scheduleApiProbe(0));
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) probeApiStatus();
+    if (!document.hidden) scheduleApiProbe(0);
   });
 }
 
@@ -2060,6 +2081,24 @@ function createList(name) {
   refreshAll();
 }
 
+function renameList(listId, nextNameRaw) {
+  const list = state.lists.find((x) => x.id === listId);
+  if (!list) return false;
+  const nextName = String(nextNameRaw || "").trim();
+  if (!nextName) return false;
+  const duplicate = state.lists.some(
+    (x) => x.id !== listId && String(x.name || "").toLowerCase() === nextName.toLowerCase()
+  );
+  if (duplicate) {
+    alert(t("lists.nameExists"));
+    return false;
+  }
+  list.name = nextName;
+  saveState();
+  refreshAll();
+  return true;
+}
+
 function addWordToList(listId, rawWord) {
   const list = state.lists.find((x) => x.id === listId);
   if (!list) return false;
@@ -2234,6 +2273,17 @@ function renderLists() {
     root.querySelector(".list-name").textContent = `${list.name} (${list.words.length})`;
 
     const deleteBtn = root.querySelector(".delete-list-btn");
+    const renameBtn = root.querySelector(".rename-list-btn");
+    if (renameBtn) {
+      renameBtn.title = t("lists.renameListTitle");
+      renameBtn.addEventListener("click", () => {
+        const current = String(list.name || "").trim();
+        const next = window.prompt(t("lists.renameListPrompt", { name: current }), current);
+        if (next == null) return;
+        renameList(list.id, next);
+      });
+    }
+
     deleteBtn.textContent = "×";
     deleteBtn.title = t("lists.deleteListTitle");
     deleteBtn.addEventListener("click", () => {
@@ -2863,11 +2913,28 @@ function bindFortress() {
     const action = String(button.dataset.fortressAction || "");
     if (action === "start") {
       startFortressGame();
+    } else if (action === "fire") {
+      const game = ui.fortress;
+      if (!game.battleStarted || game.turn !== "player" || game.phase !== "aiming") return;
+      fireFortressShot("player", game.currentAngle, game.currentPower);
     } else if (action === "reset") {
       resetFortressState();
       drawFortressScene();
       updateFortressHud();
     }
+  });
+
+  refs.fortressRoot.addEventListener("pointerup", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const canvas = event.target.closest("#fortress-canvas");
+    if (!canvas) return;
+    const game = ui.fortress;
+    if (!game.battleStarted || game.turn !== "player" || game.phase !== "aiming") return;
+    fireFortressShot("player", game.currentAngle, game.currentPower);
+  });
+
+  refs.fortressTopStartBtn?.addEventListener("click", () => {
+    startFortressGame();
   });
 
   drawFortressScene();
@@ -2891,6 +2958,7 @@ function mountFortressUi() {
         <p id="fortress-angle-text" class="fortress-angle-text"></p>
         <div class="fortress-actions">
           <button type="button" data-fortress-action="start">${escapeHtml(t("common.start"))}</button>
+          <button type="button" data-fortress-action="fire">${escapeHtml(t("common.fire"))}</button>
           <button type="button" data-fortress-action="reset">${escapeHtml(t("common.reset"))}</button>
         </div>
       </div>
@@ -2911,6 +2979,7 @@ function fortressEls() {
     msg: refs.fortressRoot.querySelector("#fortress-msg"),
     canvas: refs.fortressRoot.querySelector("#fortress-canvas"),
     startButton: refs.fortressRoot.querySelector('[data-fortress-action="start"]'),
+    fireButton: refs.fortressRoot.querySelector('[data-fortress-action="fire"]'),
   };
 }
 
@@ -5249,6 +5318,14 @@ function updateFortressHud() {
 
   if (els.startButton) {
     els.startButton.disabled = game.battleStarted;
+  }
+  if (refs.fortressTopStartBtn) {
+    refs.fortressTopStartBtn.disabled = game.battleStarted;
+  }
+  if (els.fireButton) {
+    const canFire =
+      game.battleStarted && game.turn === "player" && game.phase === "aiming" && !game.projectile;
+    els.fireButton.disabled = !canFire;
   }
 }
 
