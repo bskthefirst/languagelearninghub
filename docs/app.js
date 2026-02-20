@@ -422,6 +422,16 @@ const I18N = {
 let remoteSaveTimer = null;
 let remoteHydrated = false;
 let apiProbeTimer = null;
+const flashSwipe = {
+  pointerId: null,
+  active: false,
+  moved: false,
+  startX: 0,
+  startY: 0,
+  dx: 0,
+  dy: 0,
+  ignoreClickUntil: 0,
+};
 const rubyBackfillCache = new Map();
 const wordAudioResolveCache = new Map();
 const wordAudioResolveInFlight = new Map();
@@ -2482,7 +2492,77 @@ function bindFlashcards() {
 
   refs.flashPrev.addEventListener("click", () => moveFlashcard(-1));
   refs.flashNext.addEventListener("click", () => moveFlashcard(1));
-  refs.flashCard.addEventListener("click", flipFlashcard);
+  refs.flashCard.addEventListener("click", () => {
+    if (Date.now() < flashSwipe.ignoreClickUntil) return;
+    flipFlashcard();
+  });
+
+  const swipeTarget = refs.flashScene || refs.flashCard;
+  if (swipeTarget) {
+    swipeTarget.addEventListener("pointerdown", (event) => {
+      if (!(event.target instanceof Element)) return;
+      flashSwipe.pointerId = event.pointerId;
+      flashSwipe.active = true;
+      flashSwipe.moved = false;
+      flashSwipe.startX = event.clientX;
+      flashSwipe.startY = event.clientY;
+      flashSwipe.dx = 0;
+      flashSwipe.dy = 0;
+    });
+
+    swipeTarget.addEventListener("pointermove", (event) => {
+      if (!flashSwipe.active || flashSwipe.pointerId !== event.pointerId) return;
+      flashSwipe.dx = event.clientX - flashSwipe.startX;
+      flashSwipe.dy = event.clientY - flashSwipe.startY;
+      const absX = Math.abs(flashSwipe.dx);
+      const absY = Math.abs(flashSwipe.dy);
+      if (absX > 10 && absX > absY * 1.15) {
+        flashSwipe.moved = true;
+        const scene = refs.flashScene;
+        if (scene && !ui.flashcard.animating) {
+          const offset = Math.max(-72, Math.min(72, flashSwipe.dx * 0.4));
+          const tilt = Math.max(-6, Math.min(6, flashSwipe.dx * 0.03));
+          scene.style.transition = "none";
+          scene.style.transform = `translateX(${offset}px) rotate(${tilt}deg)`;
+        }
+      }
+    });
+
+    const finishSwipe = (event) => {
+      if (!flashSwipe.active || flashSwipe.pointerId !== event.pointerId) return;
+      flashSwipe.active = false;
+      flashSwipe.pointerId = null;
+      const dx = flashSwipe.dx;
+      const absX = Math.abs(dx);
+      const absY = Math.abs(flashSwipe.dy);
+      const scene = refs.flashScene;
+      if (scene) {
+        scene.style.transition = "transform 140ms ease";
+        scene.style.transform = "";
+        setTimeout(() => {
+          scene.style.transition = "";
+        }, 180);
+      }
+      if (flashSwipe.moved && absX >= 46 && absX > absY * 1.1) {
+        flashSwipe.ignoreClickUntil = Date.now() + 220;
+        moveFlashcard(dx < 0 ? 1 : -1);
+      }
+    };
+
+    swipeTarget.addEventListener("pointerup", finishSwipe);
+    swipeTarget.addEventListener("pointercancel", () => {
+      flashSwipe.active = false;
+      flashSwipe.pointerId = null;
+      const scene = refs.flashScene;
+      if (scene) {
+        scene.style.transition = "transform 120ms ease";
+        scene.style.transform = "";
+        setTimeout(() => {
+          scene.style.transition = "";
+        }, 160);
+      }
+    });
+  }
 }
 
 function moveFlashcard(delta) {

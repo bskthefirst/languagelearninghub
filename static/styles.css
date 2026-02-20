@@ -921,6 +921,9 @@ button:hover {
   perspective: 1200px;
   height: min(460px, 60vh);
   overflow: hidden;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .flashcard-scene.slide-out-left {
