@@ -289,11 +289,11 @@ const I18N = {
     "quiz.correct": "Correct.",
     "quiz.wrong": "Wrong. Correct answer: {answer}",
     "fortress.title": "Fortress (Easter Egg)",
-    "fortress.hint": "Press Start, then press Space or tap to lock angle and fire.",
+    "fortress.hint": "Press Start, then press Space or tap to fire.",
     "fortress.startGame": "Start Game",
     "fortress.pressStart": "Press Start to begin.",
-    "fortress.lockedAngle": "Angle locked. Press Space or tap again to lock power and fire.",
-    "fortress.yourTurn": "Your turn: lock angle, then lock power to fire.",
+    "fortress.lockedAngle": "Angle locked.",
+    "fortress.yourTurn": "Your turn: press Space or tap to fire.",
   },
   ko: {
     "app.title": "Bill의 언어 학습 허브",
@@ -412,11 +412,11 @@ const I18N = {
     "quiz.correct": "정답입니다.",
     "quiz.wrong": "오답입니다. 정답: {answer}",
     "fortress.title": "포트리스 (이스터에그)",
-    "fortress.hint": "시작을 누른 뒤 스페이스 또는 터치로 각도를 고정하고 발사하세요.",
+    "fortress.hint": "시작을 누른 뒤 스페이스 또는 터치로 발사하세요.",
     "fortress.startGame": "게임 시작",
     "fortress.pressStart": "시작 버튼을 눌러 전투를 시작하세요.",
-    "fortress.lockedAngle": "각도 고정. 스페이스 또는 터치를 다시 눌러 파워를 고정하고 발사하세요.",
-    "fortress.yourTurn": "내 턴: 각도를 고정한 뒤 파워를 고정해 발사하세요.",
+    "fortress.lockedAngle": "각도 고정.",
+    "fortress.yourTurn": "내 턴: 스페이스 또는 터치로 발사하세요.",
   },
 };
 let remoteSaveTimer = null;
@@ -3064,15 +3064,9 @@ function updateFortressAimFromPointer(canvas, event) {
   const dx = Math.max(2, cx - cannon.x);
   const dy = Math.max(0, cannon.y - cy);
   const deg = Math.max(10, Math.min(74, (Math.atan2(dy, dx) * 180) / Math.PI));
-  const dist = Math.hypot(dx, dy);
-  const pNorm = Math.max(0, Math.min(1, (dist - 34) / 210));
-  if (game.aimStep === "angle") {
-    game.currentAngle = deg;
-    game.aimNorm = (deg - 10) / 64;
-  } else {
-    game.currentPower = lerp(60, 108, pNorm);
-    game.powerNorm = pNorm;
-  }
+  game.currentAngle = deg;
+  game.aimNorm = (deg - 10) / 64;
+  game.currentPower = lerp(60, 108, game.aimNorm);
   drawFortressScene();
   updateFortressHud();
 }
@@ -3080,14 +3074,6 @@ function updateFortressAimFromPointer(canvas, event) {
 function fortressPlayerAct() {
   const game = ui.fortress;
   if (!game.battleStarted || game.turn !== "player" || game.phase !== "aiming") return;
-  if (game.aimStep === "angle") {
-    game.aimStep = "power";
-    game.message = t("fortress.lockedAngle");
-    setFortressCrewPhase("player", "load", 0.25);
-    drawFortressScene();
-    updateFortressHud();
-    return;
-  }
   game.aimStep = "angle";
   fireFortressShot("player", game.currentAngle, game.currentPower);
 }
@@ -3206,8 +3192,6 @@ function startFortressGame() {
   game.battleStarted = true;
   game.phase = "aiming";
   game.aimStep = "angle";
-  game.powerNorm = 0.5;
-  game.powerDir = Math.random() > 0.5 ? 1 : -1;
   game.turn = "player";
   game.turnCount = 1;
   game.replayVisible = false;
@@ -3263,29 +3247,17 @@ function runFortressFrame(timestamp) {
 
   if (game.hitPause <= 0 && game.battleStarted && game.turn === "player" && game.phase === "aiming") {
     const weatherAim = game.weather?.aimSpeedMult || 1;
-    if (game.aimStep === "angle") {
-      game.aimNorm += game.aimDir * game.aimSpeed * weatherAim * dt;
-      if (game.aimNorm >= 1) {
-        game.aimNorm = 1;
-        game.aimDir = -1;
-      }
-      if (game.aimNorm <= 0) {
-        game.aimNorm = 0;
-        game.aimDir = 1;
-      }
-      game.currentAngle = lerp(10, 74, game.aimNorm);
-    } else {
-      game.powerNorm += game.powerDir * game.aimSpeed * weatherAim * 1.15 * dt;
-      if (game.powerNorm >= 1) {
-        game.powerNorm = 1;
-        game.powerDir = -1;
-      }
-      if (game.powerNorm <= 0) {
-        game.powerNorm = 0;
-        game.powerDir = 1;
-      }
-      game.currentPower = lerp(60, 108, game.powerNorm);
+    game.aimNorm += game.aimDir * game.aimSpeed * weatherAim * dt;
+    if (game.aimNorm >= 1) {
+      game.aimNorm = 1;
+      game.aimDir = -1;
     }
+    if (game.aimNorm <= 0) {
+      game.aimNorm = 0;
+      game.aimDir = 1;
+    }
+    game.currentAngle = lerp(10, 74, game.aimNorm);
+    game.currentPower = lerp(60, 108, game.aimNorm);
   }
 
   if (game.hitPause <= 0 && game.projectile) {
@@ -3817,7 +3789,6 @@ function finishFortressTurn() {
     game.phase = "aiming";
     game.aimStep = "angle";
     game.aimDir = Math.random() > 0.5 ? 1 : -1;
-    game.powerDir = Math.random() > 0.5 ? 1 : -1;
     game.wind = Math.max(-8, Math.min(8, game.wind + Math.round((Math.random() * 2 - 1) * 2)));
     const weatherMsg = applyFortressTurnWeather(game);
     game.message = t("fortress.yourTurn");
@@ -4330,14 +4301,7 @@ function drawFortressScene() {
   drawBattery(ctx, canvas, game, "enemy", game.enemyX, game.enemyAngle);
 
   if (game.turn === "player" && game.phase === "aiming") {
-    drawAimGaugeOnCannon(
-      ctx,
-      canvas,
-      game.playerX,
-      game.currentAngle,
-      game.currentPower,
-      game.aimStep
-    );
+    drawAimGaugeOnCannon(ctx, canvas, game.playerX, game.currentAngle, game.currentPower);
     drawAimTrajectoryPreview(
       ctx,
       canvas,
@@ -5335,7 +5299,7 @@ function drawBattery(ctx, canvas, game, side, worldX, angleDeg) {
   ctx.restore();
 }
 
-function drawAimGaugeOnCannon(ctx, canvas, worldX, angleDeg, power, aimStep = "angle") {
+function drawAimGaugeOnCannon(ctx, canvas, worldX, angleDeg, power) {
   const baseY = terrainAtFortress(worldX);
   const c = worldToCanvas(canvas, worldX, baseY);
   const radius = Math.max(20, canvas.width * 0.025);
@@ -5366,9 +5330,9 @@ function drawAimGaugeOnCannon(ctx, canvas, worldX, angleDeg, power, aimStep = "a
 
   ctx.fillStyle = "#13284b";
   ctx.font = `${Math.max(12, canvas.width * 0.012)}px Trebuchet MS`;
-  ctx.fillStyle = aimStep === "angle" ? "#0a4d96" : "#3c2c05";
+  ctx.fillStyle = "#0a4d96";
   ctx.fillText(`${Math.round(angleDeg)} deg`, radius + 8, -4);
-  ctx.fillStyle = aimStep === "power" ? "#7b4f00" : "#13284b";
+  ctx.fillStyle = "#13284b";
   ctx.fillText(`P ${Math.round(power)}`, radius + 8, 13);
   ctx.restore();
 }
@@ -5447,12 +5411,6 @@ function updateFortressHud() {
     : 0;
   const enemyCrew = game.crew?.enemy?.phase || "idle";
   const playerCrew = game.crew?.player?.phase || "idle";
-  const aimLabel =
-    game.turn === "player" && game.phase === "aiming"
-      ? game.aimStep === "angle"
-        ? "ANGLE"
-        : "POWER"
-      : "-";
 
   els.head.textContent = `${stage.name} | Weather: ${weather.name} | Turn ${game.turnCount} | Your HP: ${
     game.playerHp
@@ -5465,7 +5423,7 @@ function updateFortressHud() {
 
   const wallHp = (game.walls || []).reduce((sum, wall) => sum + Math.max(0, wall.hitsRemaining), 0);
   if (els.angleText) {
-    els.angleText.textContent = `On-cannon gauge active | Step ${aimLabel} | Angle ${Math.round(
+    els.angleText.textContent = `On-cannon gauge active | Angle ${Math.round(
       game.currentAngle
     )} deg | Power ${Math.round(game.currentPower)} | Walls HP ${wallHp}/${
       (game.walls || []).length * 3
